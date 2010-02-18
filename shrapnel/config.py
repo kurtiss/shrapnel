@@ -70,7 +70,7 @@ class Provider(object):
 		super(Provider, self).__init__()
 		
 	def __default__(self):
-		return {}
+		return dict()
 
 
 class MySqlProvider(Provider):
@@ -109,6 +109,21 @@ class MongoProvider(Provider):
 			port = 27017,
 			database = 'database',
 			timeout = None
+		)
+
+
+class MemcacheProvider(Provider):
+	__abstract__ = True
+	
+	def construct(self, config):
+		import memcache
+		return memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
+	
+	def __defaults__(self):
+		return dict(
+			host = 'localhost',
+			port = 11211,
+			debug = 0
 		)
 
 
