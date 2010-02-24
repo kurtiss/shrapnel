@@ -57,6 +57,7 @@ class ShrapnelApplication(object):
 	def start(self , port):
 		try:
 			application = self.get_tornado_application()
+			application.settings['template_path'] = application.settings.get('template_path', os.path.join(self.path, 'templates'))
 			server = self.get_tornado_server(application)
 			server.listen(port)
 
