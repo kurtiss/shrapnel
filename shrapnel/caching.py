@@ -27,7 +27,7 @@ def cached():
 			if not hasattr(handler, '_cache'):
 				handler._cache = {}
 				
-			if isinstance(s, unicode):
+			if isinstance(cache_key, unicode):
 				cache_key = cache_key.encode('ascii')
 			
 			result = handler._cache.get(cache_key, None)
