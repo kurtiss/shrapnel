@@ -7,8 +7,11 @@ Created by Kurtiss Hare on 2010-02-25.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import bisect
 import functools
+import os
 import types
+
 
 def cached():
 	def decorator(undecorated):
@@ -50,3 +53,30 @@ def cached():
 			return result
 		return decorated
 	return decorator
+
+
+class CacheKeyGenerator(object):
+	def __init__(self, *key_parts):
+		self._file_names = []
+		self._file_parts = []
+		self._key_parts = key_parts
+		self._key = None
+	
+	def add_files(self, files):
+		if files:
+			self._key = None
+
+		for f in files:
+			index = bisect.bisect(filenames, f)
+			self._file_names.insert(index, f)
+			self._file_parts.insert(index + 1, "{0}:{1}".format(f, os.stat(f).st_mtime))
+
+	@property
+	def key(self):
+		if not self._key:
+			self._key = shrapnel.security.hash(':'.join(self._key_parts + self._file_parts))
+
+			if isinstance(self._key, unicode):
+				self._key = self._key.encode('ascii')
+
+		return self._key
