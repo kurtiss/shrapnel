@@ -9,6 +9,7 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 
 import bisect
 import functools
+import itertools
 import os
 import types
 import security
@@ -75,7 +76,7 @@ class CacheKeyGenerator(object):
 	@property
 	def key(self):
 		if not self._key:
-			self._key = security.hash(':'.join(self._key_parts + self._file_parts))
+			self._key = security.hash(':'.join(itertools.chain(self._key_parts, self._file_parts)))
 
 			if isinstance(self._key, unicode):
 				self._key = self._key.encode('ascii')
