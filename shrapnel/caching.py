@@ -67,7 +67,7 @@ class CacheKeyGenerator(object):
 			self._key = None
 
 		for f in files:
-			index = bisect.bisect(filenames, f)
+			index = bisect.bisect(self._file_names, f)
 			self._file_names.insert(index, f)
 			self._file_parts.insert(index + 1, "{0}:{1}".format(f, os.stat(f).st_mtime))
 
