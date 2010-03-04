@@ -76,7 +76,9 @@ class CacheKeyGenerator(object):
 	@property
 	def key(self):
 		if not self._key:
-			self._key = security.hash(':'.join(itertools.chain(self._key_parts, self._file_parts)))
+			parts = itertools.chain(self._key_parts, self._file_parts)
+			parts = (str(part) for part in parts)
+			self._key = security.hash(':'.join(parts))
 
 			if isinstance(self._key, unicode):
 				self._key = self._key.encode('ascii')
