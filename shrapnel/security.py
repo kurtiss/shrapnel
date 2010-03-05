@@ -13,7 +13,10 @@ import hashlib
 
 
 def uuid():
-	return base64.b64encode(uuid_module.uuid4().bytes, ('-', '_')).rstrip('=')
+	return webencode(uuid_module.uuid4().bytes)
 	
 def hash(value):
-	return base64.b64encode(hashlib.sha1(value).digest(), ('-', '_')).rstrip('=')
+	return webencode(hashlib.sha1(value).digest())
+	
+def webencode(value):
+	return base64.b64encode(value, ('-', '_')).rstrip('=')
