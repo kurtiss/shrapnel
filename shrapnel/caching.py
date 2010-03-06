@@ -18,8 +18,8 @@ import security
 def cached():
 	def decorator(undecorated):
 		@functools.wraps(undecorated)
-		def decorated(handler, *args, **kwargs):
-			generator = undecorated(handler, *args, **kwargs)
+		def decorated(*args, **kwargs):
+			generator = undecorated(*args, **kwargs)
 
 			if not type(generator) == types.GeneratorType:
 				raise RuntimeError("{0.__name__} does not conform to the 'cached' protocol.  It must return a generator.".format(undecorated))
@@ -29,28 +29,19 @@ def cached():
 			except TypeError:
 				raise RuntimeError("{0.__name__} does not conform to the 'cached' protocol.  It must yield a (<memcached>, cache_key) tuple.")
 			
-			if not hasattr(handler, '_cache'):
-				handler._cache = {}
-				
 			if isinstance(cache_key, unicode):
 				cache_key = cache_key.encode('ascii')
 			
-			result = handler._cache.get(cache_key, None)
+			result = mc.get(cache_key)
 
 			if not result:
-				result = mc.get(cache_key)
-
-				if not result:
-					try:
-						result = generator.next()
-					except StopIteration:
-						pass
-
-					if result:
-						mc.set(cache_key, result)
+				try:
+					result = generator.next()
+				except StopIteration:
+					pass
 
 				if result:
-					handler._cache[cache_key] = result
+					mc.set(cache_key, result)
 
 			return result
 		return decorated
