@@ -100,15 +100,32 @@ class MongoProvider(Provider):
 	
 	def construct(self, config):
 		import pymongo.connection
-		c = pymongo.connection.Connection(config['host'], config['port'], network_timeout=config['timeout'])
-		return c[config['database']]		
+		r_host = config.get('r_host')
+		r_port = config.get('r_port', config['port'])
+		
+		if r_host:
+			conn = pymongo.connection.Connection.paired(
+				(config['host'], config['port']), 
+				right=(r_host, r_port),
+				network_timeout = config['timeout']
+			)
+		else:
+			conn = pymongo.connection.Connection(
+				config['host'],
+				config['port'],
+				network_timeout = config['timeout']
+			)
+		
+		return conn[config['database']]
 
 	def __defaults__(self):
 		return dict(
 			host = 'localhost',
 			port = 27017,
 			database = 'database',
-			timeout = None
+			timeout = None,
+			r_host = None,
+			r_port = None,
 		)
 
 
