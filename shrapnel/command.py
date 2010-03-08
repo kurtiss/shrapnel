@@ -107,7 +107,7 @@ class ShrapnelApplication(object):
 		sys.stdout = _NullDescriptor()		
 		
 		f = open(pidfile, "w")
-		f.write("{0}", os.getpid())
+		f.write("{0}".format(os.getpid()))
 		f.close()
 
 	def start(self , port, pidfile=None):
