@@ -100,18 +100,19 @@ class MongoProvider(Provider):
 	
 	def construct(self, config):
 		import pymongo.connection
+		l_port = int(config['port'])
 		r_host = config.get('r_host')
-		r_port = config.get('r_port', config['port'])
+		r_port = config.get('r_port') or l_port
 		
 		if r_host:
 			conn = pymongo.connection.Connection.paired(
-				(config['host'], config['port']), 
-				right=(r_host, r_port)
+				(config['host'], l_port), 
+				right=(r_host, int(r_port))
 			)
 		else:
 			conn = pymongo.connection.Connection(
 				config['host'],
-				config['port'],
+				l_port,
 				network_timeout = config['timeout']
 			)
 		
