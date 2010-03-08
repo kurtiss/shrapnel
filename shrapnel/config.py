@@ -106,8 +106,7 @@ class MongoProvider(Provider):
 		if r_host:
 			conn = pymongo.connection.Connection.paired(
 				(config['host'], config['port']), 
-				right=(r_host, r_port),
-				network_timeout = config['timeout']
+				right=(r_host, r_port)
 			)
 		else:
 			conn = pymongo.connection.Connection(
