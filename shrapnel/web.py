@@ -10,12 +10,4 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 import urllib
 
 def url(base, **query):
-	return "{0}?{1}".format(base, dict(
-		(_urlencode(key), _urlencode(value)) for key, value in query
-	))
-
-def _urlencode(value):
-	if not isinstance(value, basestring):
-		value = unicode(value)
-
-	return urllib.urlencode(value)
+	return "{0}?{1}".format(base, urllib.urlencode(query))
