@@ -7,6 +7,7 @@ Created by Kurtiss Hare on 2010-02-10.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import logging
 import optparse
 import os
 import signal
@@ -103,8 +104,8 @@ class ShrapnelApplication(object):
 				pass
 
 		sys.stdin.close()
-		sys.stdout = _NullDescriptor()
-		sys.stdout = _NullDescriptor()		
+		sys.stdout = _LoggingDescriptor(logging.info)
+		sys.stderr = _LoggingDescriptor(logging.warn)		
 		
 		f = open(pidfile, "w")
 		f.write("{0}".format(os.getpid()))
@@ -138,6 +139,9 @@ class ShrapnelApplication(object):
 	def _do_signal(self, signal, frame):
 		self.stop()
 
-class _NullDescriptor(object):
+class _LoggingDescriptor(object):
+	def __init__(self, logger):
+		self.logger = logger
+
 	def write(self, data):
-		pass
+		logger(data)
