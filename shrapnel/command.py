@@ -168,9 +168,15 @@ class ShrapnelApplication(object):
 		self.stop()
 
 def _setup_logging(options):
-	class _InfoOnlyFilter(logging.Filter):
+	class _InfoFilter(logging.Filter):
 		def filter(self, record):
-			if record.__dict__.get('levelname', None) == 'INFO':
+			if record.__dict__.get('levelname', None) in ('INFO', 'WARNING'):
+				return 1
+			return 0
+			
+	class _ErrorFilter(logging.Filter):
+		def filter(self, record):
+			if record.__dict__.get('levelname', None) == 'ERROR':
 				return 1
 			return 0
 	
@@ -181,13 +187,14 @@ def _setup_logging(options):
 		handler = logging.handlers.WatchedFileHandler(options.infolog)
 		handler.setLevel(logging.INFO)
 		handler.setFormatter(formatter)
-		handler.addFilter(_InfoOnlyFilter())
+		handler.addFilter(_InfoFilter())
 		logger.addHandler(handler)
 	
 	if options.errorlog:
 		handler = logging.handlers.WatchedFileHandler(options.errorlog)
-		handler.setLevel(logging.WARN)
+		handler.setLevel(logging.ERROR)
 		handler.setFormatter(formatter)
+		handler.addFilter(_ErrorFilter())
 		logger.addHandler(handler)
 
 
