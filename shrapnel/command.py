@@ -170,13 +170,14 @@ class ShrapnelApplication(object):
 def _setup_logging(options):
 	class _InfoFilter(logging.Filter):
 		def filter(self, record):
-			if record.__dict__.get('levelname', None) in ('INFO', 'WARNING'):
+			levelno = record.__dict__.get('levelno', 0)
+			if levelno >= logging.INFO && levelno <= logging.WARNING:
 				return 1
 			return 0
 			
 	class _ErrorFilter(logging.Filter):
 		def filter(self, record):
-			if record.__dict__.get('levelname', None) == 'ERROR':
+			if record.__dict__.get('levelno', 0) >= logging.ERROR:
 				return 1
 			return 0
 	
