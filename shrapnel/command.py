@@ -8,6 +8,7 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
 import logging
+import logging.handlers
 import optparse
 import os
 import signal
@@ -189,14 +190,14 @@ def _setup_logging(options):
 	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 	if options.infolog:
-		handler = logging.WatchedFileHandler(options.infolog)
+		handler = logging.handlers.WatchedFileHandler(options.infolog)
 		handler.setLevel(logging.INFO)
 		handler.setFormatter(formatter)
 		handler.addFilter(_InfoOnlyFilter())
 		logger.addHandler(handler)
 	
 	if options.errorlog:
-		handler = logging.WatchedFileHandler(options.errorlog)
+		handler = logging.handlers.WatchedFileHandler(options.errorlog)
 		handler.setLevel(logging.WARN)
 		handler.setFormatter(formatter)
 		logger.addHandler(handler)
