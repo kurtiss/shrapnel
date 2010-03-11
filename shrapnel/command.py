@@ -208,4 +208,4 @@ class _LoggingDescriptor(object):
 		self.logger = logger
 
 	def write(self, data):
-		logger(data)		
+		self.logger(data)		
