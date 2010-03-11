@@ -50,6 +50,20 @@ class ShrapnelApplication(object):
 			default	= None,
 			help	= "The path to a file which will contain the server's process ID."
 		)
+		
+		parser.add_option("-el", "--errorlog",
+			action	= "store",
+			dest	= "logfile",
+			default	= None,
+			help	= "The path to a file which will contain the server's error log messages."
+		)
+		
+		parser.add_option("-il", "--infolog",
+			action	= "store",
+			dest	= "logfile",
+			default	= None,
+			help	= "The path to a file which will contain the server's informational log messages."
+		)		
 
 		options, args = parser.parse_args()
 		os.chdir(self.path)
@@ -60,9 +74,9 @@ class ShrapnelApplication(object):
 
 		signal.signal(signal.SIGINT, self._do_signal)
 		signal.signal(signal.SIGTERM, self._do_signal)
-		self.start(int(options.port), options.pidfile)
+		self.start(options)
 
-	def _daemonize(self, pidfile):
+	def _daemonize(self, options):
 		# http://code.activestate.com/recipes/278731/
 		pid = os.fork()
 
@@ -80,8 +94,8 @@ class ShrapnelApplication(object):
 		os.chroot("/")
 		os.umask(0)
 
-		if os.access(pidfile, os.F_OK):
-			f = open(pidfile, "r")
+		if os.access(options.pidfile, os.F_OK):
+			f = open(options.pidfile, "r")
 			f.seek(0)
 			old_pid = f.readline()
 			
@@ -104,21 +118,25 @@ class ShrapnelApplication(object):
 				pass
 
 		sys.stdin.close()
-		sys.stdout = _LoggingDescriptor(logging.info)
-		sys.stderr = _LoggingDescriptor(logging.warn)		
-		
+
+		if options.infolog or options.errorlog:
+			_setup_logging(options)
+		else:
+			sys.stdout = _NullDescriptor()
+			sys.stderr = _NullDescriptor()	
+
 		f = open(pidfile, "w")
 		f.write("{0}".format(os.getpid()))
 		f.close()
 
-	def start(self , port, pidfile=None):
-		if pidfile:
-			self._daemonize(pidfile)
+	def start(self , options):
+		if options.pidfile:
+			self._daemonize(options)
 		
 		application = self.get_tornado_application()
 		application.settings['template_path'] = application.settings.get('template_path', os.path.join(self.path, 'templates'))		
 		server = self.get_tornado_server(application)
-		server.listen(port)
+		server.listen(int(options.port))
 
 		if (self.autoreload):
 			import tornado.autoreload
@@ -139,9 +157,55 @@ class ShrapnelApplication(object):
 	def _do_signal(self, signal, frame):
 		self.stop()
 
-class _LoggingDescriptor(object):
-	def __init__(self, logger):
-		self.logger = logger
+def _setup_logging(options):
+	class _InfoOnlyFilter(logging.Filter):
+		def filter(self, record):
+			if record.level == logging.INFO:
+				return 1
 
-	def write(self, data):
-		logger(data)
+			return 0
+	
+	class _LoggingDescriptor(object):
+		def __init__(self, logger):
+			self.logger = logger
+
+		def write(self, data):
+			logger(data)
+	
+	class _LogRecord(logging.LogRecord):
+		def __init__(self, name, level, *args, **kwargs):
+			self.level = level
+			super(_LogRecord, self).__init__(self, name, level, *args, **kwargs)
+
+	class _Logger(logging.getLoggerClass()):
+		def makeRecord(self, *args, **kwargs):
+			return _LogRecord(*args, **kwargs)
+
+	logging.setLoggerClass(_Logger)
+	
+	logger = logging.getLogger()
+	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+	if options.infolog:
+		handler = logging.FileHandler(options.infolog)
+		handler.setLevel(logging.INFO)
+		handler.setFormatter(formatter)
+		handler.addFilter(_InfoOnlyFilter())
+		logger.addHandler(handler)
+		sys.stdout = _LoggingDescriptor(logging.info)
+	else:
+		sys.stdout = _NullDescriptor()
+	
+	if options.errorlog:
+		handler = logging.FileHandler(options.errorlog)
+		handler.setLevel(logging.WARN)
+		handler.setFormatter(formatter)
+		logger.addHandler(handler)
+		sys.stderr = _LoggingDescriptor(logging.error)
+	else:
+		sys.stdin = _NullDescriptor()
+
+
+class _NullDescriptor(object):
+	def write(self, value):
+		pass
