@@ -171,7 +171,7 @@ def _setup_logging(options):
 	class _InfoFilter(logging.Filter):
 		def filter(self, record):
 			levelno = record.__dict__.get('levelno', 0)
-			if levelno >= logging.INFO && levelno <= logging.WARNING:
+			if levelno >= logging.INFO and levelno <= logging.WARNING:
 				return 1
 			return 0
 			
