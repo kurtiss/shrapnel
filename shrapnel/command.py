@@ -182,6 +182,7 @@ def _setup_logging(options):
 
 	class _Logger(logging.getLoggerClass()):
 		def makeRecord(self, *args, **kwargs):
+			print "making record"
 			return _LogRecord(*args, **kwargs)
 
 	logging.setLoggerClass(_Logger)
