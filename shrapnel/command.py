@@ -101,7 +101,7 @@ class ShrapnelApplication(object):
 			old_pid = f.readline()
 			
 			if os.path.exists("/proc/{0}".format(old_pid)):
-				print "Old PID file exists, and process is still running: {0}".format(pidfile)
+				print "Old PID file exists, and process is still running: {0}".format(options.pidfile)
 				sys.exit(1)
 			else:
 				print "Cleaning old PID file, which points to a non-running process."
@@ -133,7 +133,7 @@ class ShrapnelApplication(object):
 		else:
 			sys.stderr = _NullDescriptor()	
 
-		f = open(pidfile, "w")
+		f = open(options.pidfile, "w")
 		f.write("{0}".format(os.getpid()))
 		f.close()
 
