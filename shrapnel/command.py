@@ -51,16 +51,16 @@ class ShrapnelApplication(object):
 			help	= "The path to a file which will contain the server's process ID."
 		)
 		
-		parser.add_option("-el", "--errorlog",
+		parser.add_option("-e", "--errorlog",
 			action	= "store",
-			dest	= "logfile",
+			dest	= "errorlog",
 			default	= None,
 			help	= "The path to a file which will contain the server's error log messages."
 		)
 		
-		parser.add_option("-il", "--infolog",
+		parser.add_option("-i", "--infolog",
 			action	= "store",
-			dest	= "logfile",
+			dest	= "infolog",
 			default	= None,
 			help	= "The path to a file which will contain the server's informational log messages."
 		)		
@@ -121,8 +121,15 @@ class ShrapnelApplication(object):
 
 		if options.infolog or options.errorlog:
 			_setup_logging(options)
+
+		if options.infolog:
+			sys.stdout = _LoggingDescriptor(logging.info)
 		else:
 			sys.stdout = _NullDescriptor()
+		
+		if options.errorlog:
+			sys.stderr = _LoggingDescriptor(logging.error)
+		else:
 			sys.stderr = _NullDescriptor()	
 
 		f = open(pidfile, "w")
@@ -132,6 +139,8 @@ class ShrapnelApplication(object):
 	def start(self , options):
 		if options.pidfile:
 			self._daemonize(options)
+		elif options.infolog or options.errorlog:
+			_setup_logging(options)
 		
 		application = self.get_tornado_application()
 		application.settings['template_path'] = application.settings.get('template_path', os.path.join(self.path, 'templates'))		
@@ -157,20 +166,13 @@ class ShrapnelApplication(object):
 	def _do_signal(self, signal, frame):
 		self.stop()
 
-def _setup_logging(options):
+def _setup_logging(options, alt):
 	class _InfoOnlyFilter(logging.Filter):
 		def filter(self, record):
 			if record.level == logging.INFO:
 				return 1
 
 			return 0
-	
-	class _LoggingDescriptor(object):
-		def __init__(self, logger):
-			self.logger = logger
-
-		def write(self, data):
-			logger(data)
 	
 	class _LogRecord(logging.LogRecord):
 		def __init__(self, name, level, *args, **kwargs):
@@ -192,20 +194,21 @@ def _setup_logging(options):
 		handler.setFormatter(formatter)
 		handler.addFilter(_InfoOnlyFilter())
 		logger.addHandler(handler)
-		sys.stdout = _LoggingDescriptor(logging.info)
-	else:
-		sys.stdout = _NullDescriptor()
 	
 	if options.errorlog:
 		handler = logging.FileHandler(options.errorlog)
 		handler.setLevel(logging.WARN)
 		handler.setFormatter(formatter)
 		logger.addHandler(handler)
-		sys.stderr = _LoggingDescriptor(logging.error)
-	else:
-		sys.stdin = _NullDescriptor()
 
 
 class _NullDescriptor(object):
 	def write(self, value):
 		pass
+		
+class _LoggingDescriptor(object):
+	def __init__(self, logger):
+		self.logger = logger
+
+	def write(self, data):
+		logger(data)		
