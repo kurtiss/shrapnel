@@ -170,10 +170,8 @@ class ShrapnelApplication(object):
 def _setup_logging(options):
 	class _InfoOnlyFilter(logging.Filter):
 		def filter(self, record):
-			if record.level == logging.INFO:
-				return 1
-
-			return 0
+			print repr(record.__dict__)
+			return 1
 	
 	class _LogRecord(logging.LogRecord):
 		def __init__(self, name, level, *args, **kwargs):
