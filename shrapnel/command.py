@@ -166,7 +166,7 @@ class ShrapnelApplication(object):
 	def _do_signal(self, signal, frame):
 		self.stop()
 
-def _setup_logging(options, alt):
+def _setup_logging(options):
 	class _InfoOnlyFilter(logging.Filter):
 		def filter(self, record):
 			if record.level == logging.INFO:
@@ -189,14 +189,14 @@ def _setup_logging(options, alt):
 	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 	if options.infolog:
-		handler = logging.FileHandler(options.infolog)
+		handler = logging.WatchedFileHandler(options.infolog)
 		handler.setLevel(logging.INFO)
 		handler.setFormatter(formatter)
 		handler.addFilter(_InfoOnlyFilter())
 		logger.addHandler(handler)
 	
 	if options.errorlog:
-		handler = logging.FileHandler(options.errorlog)
+		handler = logging.WatchedFileHandler(options.errorlog)
 		handler.setLevel(logging.WARN)
 		handler.setFormatter(formatter)
 		logger.addHandler(handler)
