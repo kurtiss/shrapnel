@@ -170,20 +170,9 @@ class ShrapnelApplication(object):
 def _setup_logging(options):
 	class _InfoOnlyFilter(logging.Filter):
 		def filter(self, record):
-			print repr(record.__dict__)
-			return 1
-	
-	class _LogRecord(logging.LogRecord):
-		def __init__(self, name, level, *args, **kwargs):
-			self.level = level
-			super(_LogRecord, self).__init__(self, name, level, *args, **kwargs)
-
-	class _Logger(logging.getLoggerClass()):
-		def makeRecord(self, *args, **kwargs):
-			print "making record"
-			return _LogRecord(*args, **kwargs)
-
-	logging.setLoggerClass(_Logger)
+			if record.__dict__.get('levelname', None) == 'INFO'
+				return 1
+			return 0
 	
 	logger = logging.getLogger()
 	formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
