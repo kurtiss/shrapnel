@@ -26,7 +26,7 @@ def in_list(values, subs):
 	return "(%s)" % lst.join(',')
 
 
-class ShrapnelConnection(object):
+class Connection(object):
     def __init__(self, connection):
         self.connection = connection
 

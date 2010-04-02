@@ -73,30 +73,26 @@ class Provider(object):
 		return dict()
 
 
-class MySqlProvider(Provider):
+class DatabaseProvider(Provider):
 	__abstract__ = True
 
 	def construct(self, config):
 		import tornado.database
+		import shrapnel.db
 
-		c = tornado.database.Connection(
+		return shrapnel.db.Connection(tornado.database.Connection(
 			config['host'], 
 			config['database'], 
 			config['user'], 
 			config['password']
-		)
-		
-		c._db_args.update(config['mysqldb_kwargs'])
+		))
 
-		return c
-		
 	def __defaults__(self):
 		return dict(
 			host            = 'localhost:3306', # '/path/to/mysql.sock'
 			database        = 'database',
 			user            = None,
-			password        = None,
-			mysqldb_kwargs  = dict()
+			password        = None
 		)
 
 
