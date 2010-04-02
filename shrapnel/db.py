@@ -67,7 +67,7 @@ class Connection(object):
 
     def _call_with_reconnect(self, callable, query, format_args, format_kwargs):
         formatter = _ParameterizingFormatter()
-        query = formatter.format(query, format_args, format_kwargs)
+        query = formatter.vformat(query, format_args, format_kwargs)
         
         try:
             result = callable(query, *formatter.parameters)
