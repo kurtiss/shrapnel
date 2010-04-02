@@ -11,19 +11,32 @@ import security
 import tornado.database
 
 
-def in_list(values, subs):
-	unique = "sub_%s_%%d" % security.uuid()
-	lst = []
-	i = 0
+class InList(object):
+    def __init__(self, list):
+        self.list = list
+    
+    def __parameterize__(self, format_spec):
+        return self.list, str(self)
+        
+    def __str__(self):
+        import itertools
+        return "({0})".format(', '.join(itertools.repeat("%s", len(self.list))))
 
-	for value in values:
-		key = unique % i
-		i += 1
-		
-		params[key] = value
-		lst.append("%(%s)s" % sub_key)
 
-	return "(%s)" % lst.join(',')
+class _ParameterizingFormatter(string.Formatter):
+    def __init__(self, *args, **kwargs):
+        super(_ParameterizingFormatter, self).__init__(*args, **kwargs)
+        self.parameters = []
+
+    def format_field(self, value, format_spec):
+        if hasattr(value, '__parameterize__'):
+            parameters, formatted_value = value.__parameterize__(format_spec)
+            self.parameters.extend(parameters)
+
+            return formatted_value
+
+        self.parameters.append(value)
+        return "%s"
 
 
 class Connection(object):
@@ -52,24 +65,13 @@ class Connection(object):
         return self._call_with_reconnect(self.connection.executemany, query, format_args, format_kwargs)
 
     def _call_with_reconnect(self, callable, query, format_args, format_kwargs):
-        query, parameters = self._format_query(query, format_args, format_kwargs)
+        formatter = _ParameterizingFormatter()
+        query = formatter.format(query, format_args, format_kwargs)
         
         try:
-            result = callable(query, *parameters)
+            result = callable(query, *formatter.parameters)
         except tornado.database.OperationalError:
             self.reconnect()
-            result = callable(query, *parameters)
+            result = callable(query, *formatter.parameters)
 
         return result
-
-    def _format_query(self, query, format_args, format_kwargs):
-        import re
-        subs = []
-
-        def format_sub(format_match):
-            subs.append(format_match.group().format(*format_args, **format_kwargs))
-            return "%s"
-
-        query = re.sub(r'{[^}]*}', format_sub, query)
-
-        return query, subs
