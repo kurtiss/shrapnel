@@ -21,8 +21,10 @@ def instance(name, *args, **kwargs):
 	if MyProvider._instance == None:
 		MyProvider._instance = MyProvider()
 
+    return MyProvider._instance.__provide__(method_name)
+
 	try:
-		result = MyProvider._instance._instances[method_name]
+		result = MyProvider._instance.__
 	except KeyError:
 		config_method = getattr(MyProvider._instance, method_name)
 		config = dict(MyProvider._instance.__defaults__().items() + config_method().items())
@@ -71,6 +73,16 @@ class Provider(object):
 		
 	def __default__(self):
 		return dict()
+
+    def __provide__(self, method_name):
+       	try:
+       	    result = self._instances[method_name]
+       	except KeyError:
+       		config_method = getattr(self, method_name)
+       		config = dict(self.__defaults__().items() + config_method().items())
+       		result = self._instances[method_name] = self.construct(config)
+
+       	return result
 
 
 class DatabaseProvider(Provider):
@@ -128,6 +140,12 @@ class MongoProvider(Provider):
 			r_host = None,
 			r_port = None,
 		)
+		
+	def __provide__(self, method_name):
+	    # pymongo will do the appropriate connection pooling.
+	    config_method = getattr(self, method_name)
+   		config = dict(self.__defaults__().items() + config_method().items())
+   		return self.construct(config)
 
 
 class MemcacheProvider(Provider):
