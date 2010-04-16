@@ -19,16 +19,16 @@ def transaction(retries=1):
         def decorated(*args, **kwargs):
             generator = undecorated(*args, **kwargs)
 
-			if not type(generator) == types.GeneratorType:
-				raise RuntimeError("{0.__name__} does not conform to the 'transaction' protocol.  It must return a generator.".format(undecorated))
+            if not type(generator) == types.GeneratorType:
+                raise RuntimeError("{0.__name__} does not conform to the 'transaction' protocol.  It must return a generator.".format(undecorated))
 
-			try:
+            try:
                 db = generator.next()
             except StopIteration:
                 db = None
 
-            if not type(db) == '':
-                raise RuntimeError('')
+            if type(db) != Connection:
+                raise RuntimeError('bad type for "db"')
 
             exception = None
             result = None
@@ -38,10 +38,10 @@ def transaction(retries=1):
                     try:
                         result = generator.next()
                     except StopIteration:
-                        exception = RuntimeError('')
+                        exception = RuntimeError("{0.__name__} does not conform to the 'transaction' protocol.  It must return a generator of sufficient length.".format(undecorated))
                         break
 
-                except Exception e:
+                except Exception as e:
                     db.execute('rollback')
                     generator = undecorated(*args, **kwargs)
                     generator.next()
@@ -106,6 +106,17 @@ class Connection(object):
 
     def executemany(self, query, *format_args, **format_kwargs):
         return self._call_with_reconnect(self.connection.executemany, query, format_args, format_kwargs)
+
+    def rowcount(self):
+        return self.connection._db.cursor().rowcount
+
+    def execute_rowcount(self, query, *format_args, **format_kwargs):
+        cursor = self.connection._db.cursor()
+        formatter = _ParameterizingFormatter()
+        query = formatter.vformat(query, format_args, format_kwargs)
+
+        cursor.execute(query, formatter.parameters)
+        return cursor.rowcount
 
     def _call_with_reconnect(self, callable, query, format_args, format_kwargs):
         formatter = _ParameterizingFormatter()
