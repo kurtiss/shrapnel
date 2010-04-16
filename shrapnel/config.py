@@ -8,142 +8,160 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
 def instance(name, *args, **kwargs):
-	if '.' not in name:
-		name += ".__default__"
+    if '.' not in name:
+        name += ".__default__"
 
-	cls_name, method_name = name.split('.')
+    cls_name, method_name = name.split('.')
 
-	try:
-		MyProvider = ProviderMetaclass._subclasses[cls_name]
-	except KeyError:
-		raise ConfigurationLookupError()
-	
-	if MyProvider._instance == None:
-		MyProvider._instance = MyProvider()
+    try:
+        MyProvider = ProviderMetaclass._subclasses[cls_name]
+    except KeyError:
+        raise ConfigurationLookupError()
+    
+    if MyProvider._instance == None:
+        MyProvider._instance = MyProvider()
 
-	try:
-		result = MyProvider._instance._instances[method_name]
-	except KeyError:
-		config_method = getattr(MyProvider._instance, method_name)
-		config = dict(MyProvider._instance.__defaults__().items() + config_method().items())
-		result = MyProvider._instance._instances[method_name] = MyProvider._instance.construct(config)
+    return MyProvider._instance.__provide__(method_name)
 
-	return result
+    try:
+        result = MyProvider._instance.__
+    except KeyError:
+        config_method = getattr(MyProvider._instance, method_name)
+        config = dict(MyProvider._instance.__defaults__().items() + config_method().items())
+        result = MyProvider._instance._instances[method_name] = MyProvider._instance.construct(config)
+
+    return result
 
 
 class ProviderMetaclass(type):
-	_subclasses = {}
+    _subclasses = {}
 
-	def __new__(cls, name, bases, attrs):
-		new_cls = type.__new__(cls, name, bases, attrs)
+    def __new__(cls, name, bases, attrs):
+        new_cls = type.__new__(cls, name, bases, attrs)
 
-		if not attrs.pop('__abstract__', False):
-			namespace = attrs.get('__namespace__', False)
+        if not attrs.pop('__abstract__', False):
+            namespace = attrs.get('__namespace__', False)
 
-			if not namespace:
-				import re
-				match = re.match(r'^(.*)ConfigurationProvider$', name)
+            if not namespace:
+                import re
+                match = re.match(r'^(.*)ConfigurationProvider$', name)
 
-				if match:
-					namespace = match.group(1).lower()
-				else:
-					namespace = name
+                if match:
+                    namespace = match.group(1).lower()
+                else:
+                    namespace = name
 
-			cls._subclasses[namespace] = new_cls
+            cls._subclasses[namespace] = new_cls
 
-		return new_cls
+        return new_cls
 
 
 class Provider(object):
-	__metaclass__ = ProviderMetaclass
-	__abstract__ = True
-	_instance = None
+    __metaclass__ = ProviderMetaclass
+    __abstract__ = True
+    _instance = None
 
-	def __defaults__(self):
-		return dict()
+    def __defaults__(self):
+        return dict()
 
-	def construct(self, configuration):
-		return configuration
+    def construct(self, configuration):
+        return configuration
 
-	def __init__(self):
-		self._instances = {}
-		super(Provider, self).__init__()
-		
-	def __default__(self):
-		return dict()
+    def __init__(self):
+        self._instances = {}
+        super(Provider, self).__init__()
+        
+    def __default__(self):
+        return dict()
+
+    def __provide__(self, method_name):
+        try:
+            result = self._instances[method_name]
+        except KeyError:
+            config_method = getattr(self, method_name)
+            config = dict(self.__defaults__().items() + config_method().items())
+            result = self._instances[method_name] = self.construct(config)
+
+        return result
 
 
 class DatabaseProvider(Provider):
-	__abstract__ = True
+    __abstract__ = True
 
-	def construct(self, config):
-		import tornado.database
-		import shrapnel.db
+    def construct(self, config):
+        import tornado.database
+        import shrapnel.db
 
-		return shrapnel.db.Connection(tornado.database.Connection(
-			config['host'], 
-			config['database'], 
-			config['user'], 
-			config['password']
-		))
+        return shrapnel.db.Connection(tornado.database.Connection(
+            config['host'], 
+            config['database'], 
+            config['user'], 
+            config['password']
+        ))
 
-	def __defaults__(self):
-		return dict(
-			host            = 'localhost:3306', # '/path/to/mysql.sock'
-			database        = 'database',
-			user            = None,
-			password        = None
-		)
+    def __defaults__(self):
+        return dict(
+            host            = 'localhost:3306', # '/path/to/mysql.sock'
+            database        = 'database',
+            user            = None,
+            password        = None
+        )
 
 
 class MongoProvider(Provider):
-	__abstract__ = True
-	
-	def construct(self, config):
-		import pymongo.connection
-		l_port = int(config['port'])
-		r_host = config.get('r_host')
-		r_port = config.get('r_port') or l_port
-		
-		if r_host:
-			conn = pymongo.connection.Connection.paired(
-				(config['host'], l_port), 
-				right=(r_host, int(r_port))
-			)
-		else:
-			conn = pymongo.connection.Connection(
-				config['host'],
-				l_port,
-				network_timeout = config['timeout']
-			)
-		
-		return conn[config['database']]
+    __abstract__ = True
+    
+    def construct(self, config):
+        import pymongo.connection
+        l_port = int(config['port'])
+        r_host = config.get('r_host')
+        r_port = config.get('r_port') or l_port
+        
+        if r_host:
+            conn = pymongo.connection.Connection.paired(
+                (config['host'], l_port), 
+                right=(r_host, int(r_port))
+            )
+        else:
+            conn = pymongo.connection.Connection(
+                config['host'],
+                l_port,
+                network_timeout = config['timeout']
+            )
+        
+        return conn[config['database']]
 
-	def __defaults__(self):
-		return dict(
-			host = 'localhost',
-			port = 27017,
-			database = 'database',
-			timeout = None,
-			r_host = None,
-			r_port = None,
-		)
+    def __defaults__(self):
+        return dict(
+            host = 'localhost',
+            port = 27017,
+            database = 'database',
+            timeout = None,
+            r_host = None,
+            r_port = None,
+        )
+        
+    def __provide__(self, method_name):
+        # pymongo will do the appropriate connection pooling.
+        config_method = getattr(self, method_name)
+        config = dict(self.__defaults__().items() + config_method().items())
+        return self.construct(config)
 
 
 class MemcacheProvider(Provider):
-	__abstract__ = True
-	
-	def construct(self, config):
-		import memcache
-		return memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
-	
-	def __defaults__(self):
-		return dict(
-			host = 'localhost',
-			port = 11211,
-			debug = 0
-		)
+    __abstract__ = True
+    
+    def construct(self, config):
+        import memcache
+        return memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
+    
+    def __defaults__(self):
+        return dict(
+            host = 'localhost',
+            port = 11211,
+            debug = 0
+        )
 
 
 class ConfigurationLookupError(LookupError):
-	pass
+    pass
