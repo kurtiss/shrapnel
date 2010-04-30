@@ -126,8 +126,7 @@ class MongoProvider(Provider):
             conn = pymongo.connection.Connection(
                 config['host'],
                 l_port,
-                network_timeout = config['timeout'],
-                pool_size = config['pool_size']
+                network_timeout = config['timeout']
             )
         
         return conn[config['database']]
@@ -138,9 +137,8 @@ class MongoProvider(Provider):
             port        = 27017,
             database    = 'database',
             timeout     = None,
-            r_hos       = None,
-            r_port      = None,
-            pool_size   = 1
+            r_host      = None,
+            r_port      = None
         )
         
     def __provide__(self, method_name):
