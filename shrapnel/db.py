@@ -7,11 +7,16 @@ Created by Kurtiss Hare on 2010-02-22.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import collections
+import datetime
 import functools
 import security
 import string
+import threading
 import tornado.database
+import tornado.ioloop
 import types
+
 
 def transaction(retries=1):
     def decorator(undecorated):
@@ -82,41 +87,97 @@ class _ParameterizingFormatter(string.Formatter):
         return "%s"
 
 
+class ConnectionPool(object):
+    """
+    Tornado database connection pool.  acquire() to grab a connection and release() to
+    move it back to the pool.  Caching of connections is keyed off thread-local-storage.
+    """
+    def __init__(self, args, kwargs):
+        self.tls = threading.local()
+        self.queue = collections.deque()
+        self.args = args
+        self.kwargs = kwargs
+
+    def acquire(self):
+        connection = getattr(self.tls, 'connection', None)
+
+        if not connection:
+            try:
+                (connection, last_used_time) = self.queue.pop()
+            except IndexError:
+                connection = self.create()
+
+            self.tls.connection = connection
+
+        return connection
+    
+    def create(self):
+        print "create!"
+        return tornado.database.Connection(*self.args, **self.kwargs)
+    
+    def release(self):
+        connection = getattr(self.tls, 'connection', None)
+
+        if connection:
+            self.queue.append((connection, datetime.datetime.utcnow()))
+            self.tls.connection = None
+
+    def prune(self):
+        now = datetime.datetime.utcnow()
+        max_idle_time = datetime.timedelta(minutes = 1)
+
+        while True:
+            try:
+                connection, last_used_time = self.queue.popleft()
+            except IndexError:
+                break
+            
+            if (last_used_time - now) <= max_idle_time:
+                self.queue.appendleft((connection, last_used_time))
+                break
+
+
 class Connection(object):
-    def __init__(self, connection):
-        self.connection = connection
+    def __init__(self, *args, **kwargs):
+        self.pool = ConnectionPool(args, kwargs)
+        self.pruner = tornado.ioloop.PeriodicCallback(self.pool.prune, 30000)
+        self.pruner.start()
+    
+    def __del__(self):
+        self.pruner.stop()
+        self.close()
 
     def close(self):
-        self.connection.close()
+        self.pool.release()
 
     def reconnect(self):
-        self.connection.reconnect()
+        self.pool.acquire().reconnect()
 
     def iter(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.connection.iter, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.pool.acquire().iter, query, format_args, format_kwargs)
 
     def query(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.connection.query, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.pool.acquire().query, query, format_args, format_kwargs)
 
     def get(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.connection.get, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.pool.acquire().get, query, format_args, format_kwargs)
 
-    def execute(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.connection.execute, query, format_args, format_kwargs)
+    def execute(self, query, *format_args, **formats_kwargs):
+        return self._call_with_reconnect(self.pool.acquire().execute, query, format_args, format_kwargs)
 
     def executemany(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.connection.executemany, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.pool.acquire().executemany, query, format_args, format_kwargs)
 
-    def rowcount(self):
-        return self.connection._db.cursor().rowcount
-
-    def execute_rowcount(self, query, *format_args, **format_kwargs):
-        cursor = self.connection._db.cursor()
+    def executecursor(self, query, *format_args, **format_kwargs):
         formatter = _ParameterizingFormatter()
         query = formatter.vformat(query, format_args, format_kwargs)
 
-        cursor.execute(query, formatter.parameters)
-        return cursor.rowcount
+        def _executecursor(q, *params):
+            cursor = self.pool.acquire()._db.cursor()
+            cursor.execute(q, params)
+            return cursor
+
+        return self._call_with_reconnect(_executecursor, query, *formatter.parameters)
 
     def _call_with_reconnect(self, callable, query, format_args, format_kwargs):
         formatter = _ParameterizingFormatter()

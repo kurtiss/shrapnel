@@ -89,15 +89,14 @@ class DatabaseProvider(Provider):
     __abstract__ = True
 
     def construct(self, config):
-        import tornado.database
         import shrapnel.db
 
-        return shrapnel.db.Connection(tornado.database.Connection(
+        return shrapnel.db.Connection(
             config['host'], 
             config['database'], 
             config['user'], 
             config['password']
-        ))
+        )
 
     def __defaults__(self):
         return dict(
