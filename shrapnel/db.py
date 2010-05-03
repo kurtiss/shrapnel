@@ -16,6 +16,9 @@ import threading
 import tornado.database
 import tornado.ioloop
 import types
+import weakref
+
+from . import config
 
 
 def transaction(retries=1):
@@ -89,91 +92,119 @@ class _ParameterizingFormatter(string.Formatter):
 
 class ConnectionPool(object):
     """
-    Tornado database connection pool.  acquire() to grab a connection and release() to
+    Tornado database connection pool.  acquire() to grab a connection and reliniquish(connection) to
     move it back to the pool.  Caching of connections is keyed off thread-local-storage.
     """
-    def __init__(self, args, kwargs):
+    _instances = weakref.WeakValueDictionary()
+    _pruner = None
+    _pruner_lock = threading.Lock()
+
+    @classmethod
+    def instance(cls, *args, **kwargs):
+        normalized = cls.normalize_args(*args, **kwargs)
+        default_instance = cls(*args, **kwargs)
+        instance = cls._instances.setdefault(normalized, default_instance)
+        return instance
+
+    @classmethod
+    def normalize_args(cls, host, database, user = None, password = None):
+        return (host, database, user, password)
+
+    @classmethod
+    def prune(cls):
+        now = datetime.datetime.utcnow()
+        max_idle_time = datetime.timedelta(minutes = 1)
+        nonempty_pools = 0
+
+        for instance in cls._instances.values():
+            if instance:
+                for pool in instance.pools.values():
+                    while pool:
+                        connection, last_used_time = pool.popleft()
+
+                        if (now - last_used_time) <= max_idle_time:
+                            nonempty_pools += 1
+                            pool.appendleft((connection, last_used_time))
+                            break
+
+        if nonempty_pools == 0:
+            with cls._pruner_lock:
+                if cls._pruner:
+                    cls._pruner.stop()
+                    cls._pruner = None
+
+    def __init__(self, *args, **kwargs):
         self.tls = threading.local()
-        self.queue = collections.deque()
+        self.pools = weakref.WeakValueDictionary()
         self.args = args
         self.kwargs = kwargs
 
     def acquire(self):
-        connection = getattr(self.tls, 'connection', None)
+        if not hasattr(self.tls, 'pool'):
+            self.tls.pool = collections.deque()
+            self.pools[id(self.tls.pool)] = self.tls.pool
 
-        if not connection:
-            try:
-                (connection, last_used_time) = self.queue.pop()
-            except IndexError:
-                connection = self.create()
-
-            self.tls.connection = connection
+        try:
+            (connection, last_used_time) = self.tls.pool.pop()
+        except IndexError:
+            connection = self.create()
 
         return connection
-    
+
     def create(self):
-        print "create!"
         return tornado.database.Connection(*self.args, **self.kwargs)
     
-    def release(self):
-        connection = getattr(self.tls, 'connection', None)
+    def reliniquish(self, connection):
+        self.tls.pool.append((connection, datetime.datetime.utcnow()))
 
-        if connection:
-            self.queue.append((connection, datetime.datetime.utcnow()))
-            self.tls.connection = None
-
-    def prune(self):
-        now = datetime.datetime.utcnow()
-        max_idle_time = datetime.timedelta(minutes = 1)
-
-        while True:
-            try:
-                connection, last_used_time = self.queue.popleft()
-            except IndexError:
-                break
-            
-            if (last_used_time - now) <= max_idle_time:
-                self.queue.appendleft((connection, last_used_time))
-                break
+        with self._pruner_lock:
+            if not self._pruner:
+                self._pruner = tornado.ioloop.PeriodicCallback(self.prune, 30000)
+                self._pruner.start()
 
 
 class Connection(object):
-    def __init__(self, *args, **kwargs):
-        self.pool = ConnectionPool(args, kwargs)
-        self.pruner = tornado.ioloop.PeriodicCallback(self.pool.prune, 30000)
-        self.pruner.start()
+    def __init__(self, pool = '__default__'):
+        self.pool = config.instance("dbpool.{0}".format(pool))
+        self._connection = None
+
+    @property
+    def connection(self):
+        if not self._connection:
+            self._connection = self.pool.acquire()
+        return self._connection
     
     def __del__(self):
-        self.pruner.stop()
         self.close()
 
     def close(self):
-        self.pool.release()
+        if self._connection:
+            self.pool.reliniquish(self._connection)
 
     def reconnect(self):
-        self.pool.acquire().reconnect()
+        self.connection.reconnect()
 
     def iter(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.pool.acquire().iter, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.connection.iter, query, format_args, format_kwargs)
 
     def query(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.pool.acquire().query, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.connection.query, query, format_args, format_kwargs)
 
     def get(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.pool.acquire().get, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.connection.get, query, format_args, format_kwargs)
 
     def execute(self, query, *format_args, **formats_kwargs):
-        return self._call_with_reconnect(self.pool.acquire().execute, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.connection.execute, query, format_args, format_kwargs)
 
     def executemany(self, query, *format_args, **format_kwargs):
-        return self._call_with_reconnect(self.pool.acquire().executemany, query, format_args, format_kwargs)
+        return self._call_with_reconnect(self.connection.executemany, query, format_args, format_kwargs)
 
     def executecursor(self, query, *format_args, **format_kwargs):
         formatter = _ParameterizingFormatter()
         query = formatter.vformat(query, format_args, format_kwargs)
 
         def _executecursor(q, *params):
-            cursor = self.pool.acquire()._db.cursor()
+            cursor = self.connection._db.cursor()
             cursor.execute(q, params)
             return cursor
 

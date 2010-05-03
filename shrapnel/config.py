@@ -16,21 +16,12 @@ def instance(name, *args, **kwargs):
     try:
         MyProvider = ProviderMetaclass._subclasses[cls_name]
     except KeyError:
-        raise ConfigurationLookupError()
+        raise LookupError("Couldn't find provider class for {0}, tried {1}{2}ConfigurationProvider.".format(name, cls_name[0].upper(), cls_name[1:].lower()))
     
     if MyProvider._instance == None:
         MyProvider._instance = MyProvider()
 
     return MyProvider._instance.__provide__(method_name)
-
-    try:
-        result = MyProvider._instance.__
-    except KeyError:
-        config_method = getattr(MyProvider._instance, method_name)
-        config = dict(MyProvider._instance.__defaults__().items() + config_method().items())
-        result = MyProvider._instance._instances[method_name] = MyProvider._instance.construct(config)
-
-    return result
 
 
 class ProviderMetaclass(type):
@@ -56,6 +47,30 @@ class ProviderMetaclass(type):
         return new_cls
 
 
+class SingletonProvider(object):
+    def __init__(self, *args, **kwargs):
+        self._instances = dict()
+        super(SingletonProvider, self).__init__(*args, **kwargs)
+
+    def __provide__(self, method_name):
+        try:
+            result = self._instances[method_name]
+        except KeyError:
+            config_method = getattr(self, method_name)
+            config = dict(self.__defaults__().items() + config_method().items())
+            result = self._instances[method_name] = self.construct(config)
+
+        return result
+
+
+class InstanceProvider(object):
+    def __provide__(self, method_name):
+        # pymongo will do the appropriate connection pooling.
+        config_method = getattr(self, method_name)
+        config = dict(self.__defaults__().items() + config_method().items())
+        return self.construct(config)    
+
+
 class Provider(object):
     __metaclass__ = ProviderMetaclass
     __abstract__ = True
@@ -75,39 +90,10 @@ class Provider(object):
         return dict()
 
     def __provide__(self, method_name):
-        try:
-            result = self._instances[method_name]
-        except KeyError:
-            config_method = getattr(self, method_name)
-            config = dict(self.__defaults__().items() + config_method().items())
-            result = self._instances[method_name] = self.construct(config)
-
-        return result
+        raise RuntimeError("A __provide__ method has not been set for this provider.")
 
 
-class DatabaseProvider(Provider):
-    __abstract__ = True
-
-    def construct(self, config):
-        import shrapnel.db
-
-        return shrapnel.db.Connection(
-            config['host'], 
-            config['database'], 
-            config['user'], 
-            config['password']
-        )
-
-    def __defaults__(self):
-        return dict(
-            host            = 'localhost:3306', # '/path/to/mysql.sock'
-            database        = 'database',
-            user            = None,
-            password        = None
-        )
-
-
-class MongoProvider(Provider):
+class MongoProvider(SingletonProvider, Provider):
     __abstract__ = True
     
     def construct(self, config):
@@ -139,15 +125,9 @@ class MongoProvider(Provider):
             r_host      = None,
             r_port      = None
         )
-        
-    def __provide__(self, method_name):
-        # pymongo will do the appropriate connection pooling.
-        config_method = getattr(self, method_name)
-        config = dict(self.__defaults__().items() + config_method().items())
-        return self.construct(config)
 
 
-class MemcacheProvider(Provider):
+class MemcacheProvider(InstanceProvider, Provider):
     __abstract__ = True
     
     def construct(self, config):
@@ -159,6 +139,40 @@ class MemcacheProvider(Provider):
             host = 'localhost',
             port = 11211,
             debug = 0
+        )
+
+
+class DbPoolProvider(SingletonProvider, Provider):
+    __abstract__ = True
+    
+    def construct(self, config):
+        import db
+        return db.ConnectionPool.instance(
+            config['host'], 
+            config['database'], 
+            config['user'], 
+            config['password']
+        )
+    
+    def __defaults__(self):
+        return dict(
+            host            = 'localhost:3306', # '/path/to/mysql.sock'
+            database        = 'database',
+            user            = None,
+            password        = None
+        )
+
+
+class DatabaseProvider(InstanceProvider, Provider):
+    __abstract__ = True
+
+    def construct(self, config):
+        import db
+        return db.Connection(config['pool'])
+
+    def __defaults__(self):
+        return dict(
+            pool    = '__default__'
         )
 
 
