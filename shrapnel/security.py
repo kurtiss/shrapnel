@@ -12,12 +12,13 @@ import uuid as uuid_module
 import hashlib
 import random
 
+hasher = hashlib.sha1
 
 def uuid():
 	return webencode(uuid_module.uuid4().bytes)
-	
+
 def hash(value):
-	return webencode(hashlib.sha1(value).digest())
+	return webencode(hasher(value).digest())
 	
 def webencode(value):
 	return base64.b64encode(value, ('-', '_')).rstrip('=')
