@@ -153,7 +153,7 @@ class ConnectionPool(object):
 
     def create(self):
         return tornado.database.Connection(*self.args, **self.kwargs)
-    
+
     def reliniquish(self, connection):
         self.tls.pool.append((connection, datetime.datetime.utcnow()))
 
@@ -173,7 +173,7 @@ class Connection(object):
         if not self._connection:
             self._connection = self.pool.acquire()
         return self._connection
-    
+
     def __del__(self):
         self.close()
 
@@ -193,7 +193,7 @@ class Connection(object):
     def get(self, query, *format_args, **format_kwargs):
         return self._call_with_reconnect(self.connection.get, query, format_args, format_kwargs)
 
-    def execute(self, query, *format_args, **formats_kwargs):
+    def execute(self, query, *format_args, **format_kwargs):
         return self._call_with_reconnect(self.connection.execute, query, format_args, format_kwargs)
 
     def executemany(self, query, *format_args, **format_kwargs):
