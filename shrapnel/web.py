@@ -51,7 +51,7 @@ class Plan(object):
             wait_keys = (k for k in keys if k not in self._waiter_results)
             wait_values = itertools.repeat(True)
             conditions = dict(itertools.izip(wait_keys, wait_values))
-            
+
             if conditions:
                 for key in conditions.keys():
                     if not self._waiter_keys.has_key(key):
@@ -62,7 +62,7 @@ class Plan(object):
 
         if call_now:
             waiter(WaiterResult(keys, self._waiter_results))
-    
+
     def flag(self, key):
         @self._handler.async_callback
         def callback(result = None, exception = None):
@@ -72,7 +72,7 @@ class Plan(object):
                 self._waiter_results[key] = (result, exception)
                 before_waiters = self._waiter_keys.pop(key, tuple())
                 after_waiters = []
-                
+
                 for waiter_stuff in before_waiters:
                     conditions, keys, waiter = waiter_stuff
                     conditions.pop(key)
@@ -84,12 +84,12 @@ class Plan(object):
 
                 if after_waiters:
                     self._waiter_keys[key] = after_waiters
-            
-            if add_these:
-                ioloop = tornado.ioloop.IOLoop.instance()
 
-                for waiter_callback in add_these:
-                    ioloop.add_callback(waiter_callback)
+                if add_these:
+                    ioloop = tornado.ioloop.IOLoop.instance()
+
+                    for waiter_callback in add_these:
+                        ioloop.add_callback(waiter_callback)
 
         return callback
 
@@ -98,10 +98,10 @@ class WaiterResult(object):
     def __init__(self, keys, results):
         self.keys = keys
         self.results = results
-    
+
     def get(self, index = 0):
         (result, exception) = self.results[self.keys[index]]
         if exception:
             raise exception
         return result
-        
+

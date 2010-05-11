@@ -200,15 +200,12 @@ class Connection(object):
         return self._call_with_reconnect(self.connection.executemany, query, format_args, format_kwargs)
 
     def executecursor(self, query, *format_args, **format_kwargs):
-        formatter = _ParameterizingFormatter()
-        query = formatter.vformat(query, format_args, format_kwargs)
-
         def _executecursor(q, *params):
             cursor = self.connection._db.cursor()
             cursor.execute(q, params)
             return cursor
 
-        return self._call_with_reconnect(_executecursor, query, *formatter.parameters)
+        return self._call_with_reconnect(_executecursor, query, format_args, format_kwargs)
 
     def _call_with_reconnect(self, callable, query, format_args, format_kwargs):
         formatter = _ParameterizingFormatter()
