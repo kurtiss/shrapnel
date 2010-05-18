@@ -24,7 +24,8 @@ def flagger(target, callback):
         try:
             result = target(*args, **kwargs)
         except Exception as e:
-            callback(None, e)
+            import sys
+            callback(None, _WaiterException(sys.exc_info()))
         else:
             callback(result)
 
@@ -113,7 +114,13 @@ class WaiterResult(object):
 
     def get(self, index = 0):
         (result, exception) = self.results[self.keys[index]]
+
         if exception:
-            raise exception
+            raise exception, None, exception.exc_info[2]
+
         return result
 
+class _WaiterException(RuntimeError):
+    def __init__(self, exc_info):
+        self.exc_info = exc_info
+        super(_WaiterException, self).__init__("{0}: {1}".format(self.exc_info[0], self.exc_info[1]))

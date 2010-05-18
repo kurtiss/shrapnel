@@ -7,6 +7,8 @@ Created by Kurtiss Hare on 2010-05-05.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import threading
+
 class UserFunction(object):
     def __new__(cls, *args, **kwargs):
         instance = super(UserFunction, cls).__new__(cls)
@@ -22,4 +24,22 @@ class UserFunction(object):
         return result
 
     def __call__(self):
+        pass
+
+
+class BackgroundFunction(UserFunction):
+    def __init__(self, callback = None):
+        self.callback = callback
+        super(BackgroundFunction, self).__init__()
+
+    def __call__(self):
+        if self.callback:
+            import web
+            target = web.flagger(self.execute, self.callback)
+        else:
+            target = self.execute
+        
+        threading.Thread(target = target).start()
+    
+    def execute(self):
         pass
