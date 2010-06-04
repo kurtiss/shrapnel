@@ -98,6 +98,7 @@ class ConnectionPool(object):
     _instances = weakref.WeakValueDictionary()
     _pruner = None
     _pruner_lock = threading.Lock()
+    _tls_lock = threading.Lock()
 
     @classmethod
     def instance(cls, *args, **kwargs):
@@ -139,13 +140,26 @@ class ConnectionPool(object):
         self.args = args
         self.kwargs = kwargs
 
-    def acquire(self):
+    @property
+    def thread_local_lock(self):
+        if not hasattr(self.tls, 'lock'):
+            with self._tls_lock:
+                if not hasattr(self.tls, 'lock'):
+                    self.tls.lock = threading.Lock()
+        return self.tls.lock
+    
+    @property
+    def thread_local_pool(self):
         if not hasattr(self.tls, 'pool'):
-            self.tls.pool = collections.deque()
-            self.pools[id(self.tls.pool)] = self.tls.pool
+            with self.thread_local_lock:
+                if not hasattr(self.tls, 'pool'):
+                    self.tls.pool = collections.deque()
+                    self.pools[id(self.tls.pool)] = self.tls.pool
+        return self.tls.pool
 
+    def acquire(self):
         try:
-            (connection, last_used_time) = self.tls.pool.pop()
+            (connection, last_used_time) = self.thread_local_pool.pop()
         except IndexError:
             connection = self.create()
 
@@ -155,7 +169,7 @@ class ConnectionPool(object):
         return tornado.database.Connection(*self.args, **self.kwargs)
 
     def reliniquish(self, connection):
-        self.tls.pool.append((connection, datetime.datetime.utcnow()))
+        self.thread_local_pool.append((connection, datetime.datetime.utcnow()))
 
         with self._pruner_lock:
             if not self._pruner:
