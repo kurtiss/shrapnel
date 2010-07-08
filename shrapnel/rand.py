@@ -19,8 +19,10 @@ class Picker(object):
 
     @property
     def value(self):
-        return self.retainer.result[0]
-
+        try:
+            return self.retainer.result[0]
+        except IndexError:
+            raise ValueError("Picker did not enounter any values.")
 
 class Retainer(object):
     def __init__(self, size):
