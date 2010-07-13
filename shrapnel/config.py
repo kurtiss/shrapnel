@@ -93,7 +93,7 @@ class Provider(object):
         raise RuntimeError("A __provide__ method has not been set for this provider.")
 
 
-class MongoProvider(InstanceProvider, Provider):
+class MongoProvider(SingletonProvider, Provider):
     __abstract__ = True
     
     def construct(self, config):
