@@ -173,7 +173,7 @@ class ConnectionPool(object):
 
         with self._pruner_lock:
             if not self._pruner:
-                self._pruner = tornado.ioloop.PeriodicCallback(self.prune, 30000)
+                self._pruner = tornado.ioloop.PeriodicCallback(self.prune, 5000)
                 self._pruner.start()
 
 

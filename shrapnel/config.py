@@ -93,11 +93,12 @@ class Provider(object):
         raise RuntimeError("A __provide__ method has not been set for this provider.")
 
 
-class MongoProvider(SingletonProvider, Provider):
+class MongoProvider(InstanceProvider, Provider):
     __abstract__ = True
     
     def construct(self, config):
         import pymongo.connection
+
         l_port = int(config['port'])
         r_host = config.get('r_host')
         r_port = config.get('r_port') or l_port
@@ -113,7 +114,7 @@ class MongoProvider(SingletonProvider, Provider):
                 l_port,
                 network_timeout = config['timeout']
             )
-        
+
         return conn[config['database']]
 
     def __defaults__(self):
