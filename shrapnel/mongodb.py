@@ -19,7 +19,9 @@ def reconnecting(key, retries = 2):
                     except (pymongo.errors.AutoReconnect), e:
                         exc = e
             finally:
-                db.connection.end_request()
+                pass
+                # ugh this does not work
+                #db.connection.end_request()
 
             raise exc
         return decorated
