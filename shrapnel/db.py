@@ -147,7 +147,7 @@ class ConnectionPool(object):
                 if not hasattr(self.tls, 'lock'):
                     self.tls.lock = threading.Lock()
         return self.tls.lock
-    
+
     @property
     def thread_local_pool(self):
         if not hasattr(self.tls, 'pool'):

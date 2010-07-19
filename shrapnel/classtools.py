@@ -38,8 +38,8 @@ class BackgroundFunction(UserFunction):
             target = web.flagger(self.execute, self.callback)
         else:
             target = self.execute
-        
+
         threading.Thread(target = target).start()
-    
+
     def execute(self):
         pass

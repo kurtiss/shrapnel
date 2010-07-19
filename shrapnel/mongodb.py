@@ -3,25 +3,34 @@ import pymongo.errors
 
 import functools
 import config
+import threading
 
+class MongoHelper(object):
+    def __init__(self, method_name, config):
+        self.provider = config["provider"]
+        self.key = method_name
+        self.db = None
 
-def reconnecting(key, retries = 2):
-    def decorator(undecorated):
-        @functools.wraps(undecorated)
-        def decorated(*args, **kwargs):
-            exc = None
-            db = config.instance(key)
+    def do(self, *args):
+        db = config.instance("{0}.{1}".format(self.provider, self.key))
+        results = []
+        exc = None
 
-            try:
-                for i in xrange(0, retries):
+        try:
+            for fn in args:
+                for i in xrange(0, 2):
                     try:
-                        return undecorated(db, *args, **kwargs)
+                        results.append(fn(db))
                     except (pymongo.errors.AutoReconnect), e:
                         exc = e
-            finally:
-                # ugh this does not work
-                db.connection.end_request()
+                    else:
+                        exc = None
+                        break
 
-            raise exc
-        return decorated
-    return decorator
+                if exc:
+                    raise exc
+
+        finally:
+            db.connection.end_request()
+
+        return tuple(results)

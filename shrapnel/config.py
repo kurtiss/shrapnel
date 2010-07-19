@@ -7,6 +7,8 @@ Created by Kurtiss Hare on 2010-02-10.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import threading
+
 def instance(name, *args, **kwargs):
     if '.' not in name:
         name += ".__default__"
@@ -17,7 +19,7 @@ def instance(name, *args, **kwargs):
         MyProvider = ProviderMetaclass._subclasses[cls_name]
     except KeyError:
         raise LookupError("Couldn't find provider class for {0}, tried {1}{2}ConfigurationProvider.".format(name, cls_name[0].upper(), cls_name[1:].lower()))
-    
+
     if MyProvider._instance == None:
         MyProvider._instance = MyProvider()
 
@@ -56,9 +58,13 @@ class SingletonProvider(object):
         try:
             result = self._instances[method_name]
         except KeyError:
-            config_method = getattr(self, method_name)
-            config = dict(self.__defaults__().items() + config_method().items())
-            result = self._instances[method_name] = self.construct(config)
+            with threading.Lock():
+                try:
+                    result = self._instances[method_name]
+                except KeyError:
+                    config_method = getattr(self, method_name)
+                    config = dict(self.__defaults__().items() + config_method().items())
+                    result = self._instances[method_name] = self.construct(config)
 
         return result
 
@@ -68,7 +74,7 @@ class InstanceProvider(object):
         # pymongo will do the appropriate connection pooling.
         config_method = getattr(self, method_name)
         config = dict(self.__defaults__().items() + config_method().items())
-        return self.construct(config)    
+        return self.construct(config)
 
 
 class Provider(object):
@@ -85,7 +91,7 @@ class Provider(object):
     def __init__(self):
         self._instances = {}
         super(Provider, self).__init__()
-        
+
     def __default__(self):
         return dict()
 
@@ -93,19 +99,19 @@ class Provider(object):
         raise RuntimeError("A __provide__ method has not been set for this provider.")
 
 
-class MongoProvider(SingletonProvider, Provider):
+class MongoConnectionProvider(SingletonProvider, Provider):
     __abstract__ = True
-    
+
     def construct(self, config):
         import pymongo.connection
 
         l_port = int(config['port'])
         r_host = config.get('r_host')
         r_port = config.get('r_port') or l_port
-        
+
         if r_host:
             conn = pymongo.connection.Connection.paired(
-                (config['host'], l_port), 
+                (config['host'], l_port),
                 right=(r_host, int(r_port))
             )
         else:
@@ -128,13 +134,29 @@ class MongoProvider(SingletonProvider, Provider):
         )
 
 
+class MongoProvider(Provider):
+    __abstract__ = True
+
+    def __provide__(self, method_name):
+        import mongodb
+        config_method = getattr(self, method_name)
+        config = dict(self.__defaults__().items() + config_method().items())
+        return mongodb.MongoHelper(method_name, config)
+
+    def __defaults__(self):
+        # better option?
+        return dict(
+            provider = 'no_provider_defined'
+        )
+
+
 class MemcacheProvider(InstanceProvider, Provider):
     __abstract__ = True
-    
+
     def construct(self, config):
         import memcache
         return memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
-    
+
     def __defaults__(self):
         return dict(
             host = 'localhost',
@@ -145,16 +167,16 @@ class MemcacheProvider(InstanceProvider, Provider):
 
 class DbPoolProvider(SingletonProvider, Provider):
     __abstract__ = True
-    
+
     def construct(self, config):
         import db
         return db.ConnectionPool.instance(
-            config['host'], 
-            config['database'], 
-            config['user'], 
+            config['host'],
+            config['database'],
+            config['user'],
             config['password']
         )
-    
+
     def __defaults__(self):
         return dict(
             host            = 'localhost:3306', # '/path/to/mysql.sock'
