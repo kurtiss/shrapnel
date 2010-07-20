@@ -33,4 +33,7 @@ class MongoHelper(object):
         finally:
             db.connection.end_request()
 
-        return tuple(results)
+        if len(args) == 1:
+            return results[0]
+
+        return results
