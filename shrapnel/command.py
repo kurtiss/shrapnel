@@ -105,7 +105,7 @@ class ShrapnelApplication(object):
 				sys.exit(1)
 			else:
 				print "Cleaning old PID file, which points to a non-running process."
-				os.remove(pid_file)
+				os.remove(options.pidfile)
 
 		maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
 
