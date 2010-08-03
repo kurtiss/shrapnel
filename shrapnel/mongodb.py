@@ -1,9 +1,10 @@
+import functools
+import threading
+
 import pymongo.connection
 import pymongo.errors
 
-import functools
-import config
-import threading
+from . import config
 
 class MongoHelper(object):
     def __init__(self, method_name, config):
