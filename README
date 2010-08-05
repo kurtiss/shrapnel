@@ -1,0 +1,9 @@
+shrapnel is a set of tools for building webapps on top of Tornado.  
+
+Some components of interest:
+
+shrapnel.command.ShrapnelApplication - Daemonizes a single tornado process, providing some basic command line options. 
+shrapnel.config - Classes for configuring and providing objects of global interest.
+shrapnel.db - Wrappers around tornado's own dbapi wrapper.  Does connection-pooling, transparent auto-reconnect, and transaction support.
+shrapnel.mongodb - Connection acquisition/release + auto-reconnect.
+shrapnel.web.Plan - Helper to support background-threaded execution, most useful from within a RequestHandler.

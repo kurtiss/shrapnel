@@ -138,7 +138,7 @@ class MongoProvider(Provider):
     __abstract__ = True
 
     def __provide__(self, method_name):
-        import mongodb
+        from . import mongodb
         config_method = getattr(self, method_name)
         config = dict(self.__defaults__().items() + config_method().items())
         return mongodb.MongoHelper(method_name, config)

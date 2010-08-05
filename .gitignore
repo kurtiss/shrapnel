@@ -1,1 +1,45 @@
+# mac cruft
+.DS_Store
+
+#emacs cruft
+*~
+*#*
+*flymake.py
+.ropeproject
+
+# vim cruft
+*.swp
+
+# wing cruft
+*.wpr
+
+#buildout/virtualenv cruft
+bin
+lib
+include
+bootstrap.py
+develop-eggs
+.installed.cfg
+
+#python cruft
+*.egg
+*.egg-info
+.noseids
+*prof*
+pip-log.txt
 *.pyc
+
+# test cruft
+*_test
+.coverage
+
+# Sphinx cruft
+_build
+
+# backup cruft
+*.old
+
+# Misc cruft
+*.log
+*.pid
+
