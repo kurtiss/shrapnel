@@ -8,6 +8,7 @@ from . import config
 
 class MongoHelper(object):
     def __init__(self, method_name, config):
+        self.config = config
         self.provider = config["provider"]
         self.key = method_name
 
@@ -42,4 +43,9 @@ class MongoHelper(object):
         """
         Get a new instance of the mongo db.
         """
-        return config.instance("{0}.{1}".format(self.provider, self.key))
+        manipulators = self.config['son_manipulators']
+        db = config.instance("{0}.{1}".format(self.provider, self.key))
+        for manipulator in manipulators:
+            db.add_son_manipulator(manipulator)
+        return db
+
