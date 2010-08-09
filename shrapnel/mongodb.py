@@ -43,7 +43,7 @@ class MongoHelper(object):
         """
         Get a new instance of the mongo db.
         """
-        manipulators = self.config['son_manipulators']
+        manipulators = self.config.get('son_manipulators', [])
         db = config.instance("{0}.{1}".format(self.provider, self.key))
         for manipulator in manipulators:
             db.add_son_manipulator(manipulator)
