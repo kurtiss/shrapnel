@@ -134,6 +134,19 @@ class MongoConnectionProvider(SingletonProvider, Provider):
         )
 
 
+class ProcessPoolProvider(SingletonProvider, Provider):
+    __abstract__ = True
+
+    def construct(self, config):
+        import multiprocessing
+        return multiprocessing.Pool(config['processes'])
+        
+    def __defaults__(self):
+        return dict(
+            processes           = 10
+        )
+
+
 class MongoProvider(Provider):
     __abstract__ = True
 
