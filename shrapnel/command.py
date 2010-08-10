@@ -214,4 +214,4 @@ class _LoggingDescriptor(object):
 		self.logger(data)
 	
 	def flush(self):
-	    self.logger.flush()
+	    pass
