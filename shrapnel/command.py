@@ -66,6 +66,10 @@ class ShrapnelApplication(object):
 			help	= "The path to a file which will contain the server's informational log messages."
 		)		
 
+        parser.add_option('-p', '--profile',
+                default = False,
+                help = "Run the application in cProfile")
+
 		options, args = parser.parse_args()
 		os.chdir(self.path)
 
@@ -75,7 +79,11 @@ class ShrapnelApplication(object):
 
 		signal.signal(signal.SIGINT, self._do_signal)
 		signal.signal(signal.SIGTERM, self._do_signal)
-		self.start(options)
+        if options.profile:
+            from cProfile import runctx
+            runctx('self.start(options)', locals(), globals(), 'outprof')
+        else:
+            self.start(options)
 
 	def _daemonize(self, options):
 		# http://code.activestate.com/recipes/278731/
