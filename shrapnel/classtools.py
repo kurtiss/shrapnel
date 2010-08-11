@@ -21,7 +21,7 @@ class classprop(object):
 
 class UserFunction(object):
     def __new__(cls, *args, **kwargs):
-        instance = super(UserFunction, cls).__new__(cls, *args, **kwargs)
+        instance = super(UserFunction, cls).__new__(cls)
         run = kwargs.pop('run', True)
         if run:
             return cls._call_from_new(instance, args, kwargs)
