@@ -9,6 +9,7 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 
 import threading, multiprocessing, sys, atexit, copy
 
+from shrapnel.decorator import nonimmediate
 
 # http://stackoverflow.com/questions/2173206/is-there-any-way-to-create-a-class-property-in-python
 class classprop(object):
@@ -20,7 +21,7 @@ class classprop(object):
 
 class UserFunction(object):
     def __new__(cls, *args, **kwargs):
-        instance = super(UserFunction, cls).__new__(cls)
+        instance = super(UserFunction, cls).__new__(cls, *args, **kwargs)
         run = kwargs.pop('run', True)
         if run:
             return cls._call_from_new(instance, args, kwargs)
@@ -39,6 +40,7 @@ class UserFunction(object):
         return result
 
     def __init__(self, **kwargs):
+        object.__init__(self)
         self.__dict__.update(kwargs)
 
     def __call__(self):
@@ -48,14 +50,19 @@ def run_background_func(cls, args, kwargs):
     """
     This function is required since we can't pickle bound instance methods.
     """
-    instance = cls(run=False, *args, **kwargs)
-    return instance.execute()
+    try:
+        instance = cls(run=False, *args, **kwargs)
+        return instance.execute()
+    except Exception, e:
+        import traceback
+        traceback.print_exc()
 
 class BackgroundFunction(UserFunction):
     _procpool = None
     def __init__(self, callback=None, **kwargs):
+        print self.__dict__
         self.callback = callback
-        super(BackgroundFunction, self).__init__(**kwargs)
+        UserFunction.__init__(self, **kwargs)
 
     @classprop
     def procpool(cls):
@@ -68,14 +75,12 @@ class BackgroundFunction(UserFunction):
 
     @classmethod
     def delay(cls, *args, **kwargs):
-        instance = cls(run=False, *args, **kwargs)
-        assert instance
+        callback = kwargs.pop('callback', None)
         sys.stderr.flush()
         sys.stdout.flush()
-        if getattr(instance, 'callback', None):
-            callback = nonimmediate(instance.callback)
+        if callback:
             result = cls.procpool.apply_async(run_background_func,
-                                              args=(instance,), 
+                                              args=[cls, args, kwargs], 
                                               callback=callback)
         else:
             result = cls.procpool.apply_async(run_background_func, [cls, args, kwargs])
