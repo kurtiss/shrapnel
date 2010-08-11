@@ -63,7 +63,7 @@ class ProcessFunction(UserFunction):
     @classprop
     def procpool(cls):
         if not cls._procpool:
-            cls._procpool = multiprocessing.Pool()
+            cls._procpool = multiprocessing.Pool(10)
             def onclose():
                 cls._procpool.close()
             atexit.register(onclose)
