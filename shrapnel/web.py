@@ -31,7 +31,6 @@ def flagger(target, callback):
 
     return wrapper
 
-
 class Plan(object):
     def __init__(self, handler):
         self._handler = handler
