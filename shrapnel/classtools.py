@@ -32,16 +32,13 @@ class UserFunction(object):
     def _call_from_new(cls, instance, args, kwargs):
         result = None
         if isinstance(instance, cls):
+            instance.__init__(*args, **kwargs)
             result = instance()
 
         if isinstance(result, cls):
             raise RuntimeError("{0.__name__}.__call__ cannot return an instance of {0.__name__}, otherwise the __new__ mechanism would call __init__ twice.".format(cls))
 
         return result
-
-    def __init__(self, **kwargs):
-        object.__init__(self)
-        self.__dict__.update(kwargs)
 
     def __call__(self):
         pass
@@ -57,10 +54,9 @@ def run_background_func(cls, args, kwargs):
         import traceback
         traceback.print_exc()
 
-class BackgroundFunction(UserFunction):
+class ProcessFunction(UserFunction):
     _procpool = None
     def __init__(self, callback=None, **kwargs):
-        print self.__dict__
         self.callback = callback
         UserFunction.__init__(self, **kwargs)
 
@@ -99,3 +95,21 @@ class BackgroundFunction(UserFunction):
 
     def execute(self):
         pass
+
+class BackgroundFunction(UserFunction):
+    def __init__(self, callback = None):
+        super(BackgroundFunction, self).__init__()
+        self.callback = callback
+
+    def __call__(self):
+        if self.callback:
+            import web
+            target = web.flagger(self.execute, self.callback)
+        else:
+            target = self.execute
+
+        threading.Thread(target = target).start()
+
+    def execute(self):
+        pass
+
