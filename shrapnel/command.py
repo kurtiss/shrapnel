@@ -143,6 +143,8 @@ class ShrapnelApplication(object):
             self._daemonize(options)
         elif options.infolog or options.errorlog:
             _setup_logging(options)
+            
+        shrapnel.classtools.ProcessFunction.procpool
         
         application = self.get_tornado_application()
         application.settings['template_path'] = application.settings.get('template_path', os.path.join(self.path, 'templates'))     
@@ -160,7 +162,6 @@ class ShrapnelApplication(object):
             self.stop()
             
     def serve(self):
-        shrapnel.classtools.ProcessFunction.procpool
         tornado.ioloop.IOLoop.instance().start()
         
     def stop(self):
