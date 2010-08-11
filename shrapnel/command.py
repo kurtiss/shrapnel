@@ -204,10 +204,16 @@ def _setup_logging(options):
 class _NullDescriptor(object):
     def write(self, value):
         pass
-        
+    
+    def flush(self):
+        pass
+
 class _LoggingDescriptor(object):
     def __init__(self, logger):
         self.logger = logger
 
     def write(self, data):
         self.logger(data)       
+
+    def flush(self):
+        pass
