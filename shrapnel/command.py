@@ -33,7 +33,6 @@ class ShrapnelApplication(object):
         self.command = command or self.serve
 
     def run(self):
-        shrapnel.classtools.ProcessFunction.procpool
         parser = optparse.OptionParser(
             usage       = "usage: %prog [options]",
             version     = "%%prog %s" % (self.version,),
@@ -161,6 +160,7 @@ class ShrapnelApplication(object):
             self.stop()
             
     def serve(self):
+        shrapnel.classtools.ProcessFunction.procpool
         tornado.ioloop.IOLoop.instance().start()
         
     def stop(self):
