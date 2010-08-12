@@ -25,6 +25,13 @@ def instance(name, *args, **kwargs):
 
     return MyProvider._instance.__provide__(method_name)
 
+def list_instances():
+    """
+    Return a list of all top-level instance names.  This will not include any
+    specific configuration.  For instance, only 'foo' will be included in the
+    list if 'foo', 'foo.bar', 'foo.baz', etc are valid.
+    """
+    return ProviderMetaclass._subclasses.keys()
 
 class ProviderMetaclass(type):
     _subclasses = {}
