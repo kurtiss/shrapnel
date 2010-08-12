@@ -144,10 +144,19 @@ class MongoConnectionProvider(SingletonProvider, Provider):
 class MongoProvider(Provider):
     __abstract__ = True
 
+    class DummyDB(object):
+        def __getattr__(self, name):
+            raise NotImplementedError
+
     def __provide__(self, method_name):
         from . import mongodb
         config_method = getattr(self, method_name)
         config = dict(self.__defaults__().items() + config_method().items())
+        if config.get('dummy', False):
+            from warnings import warn
+            warn("Using Dummy Mongodb.  If you don't know what this means, disable the dummy option in your mongo settings.")
+            return self.DummyDB()
+
         return mongodb.MongoHelper(method_name, config)
 
     def __defaults__(self):
