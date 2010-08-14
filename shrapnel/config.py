@@ -25,6 +25,13 @@ def instance(name, *args, **kwargs):
 
     return MyProvider._instance.__provide__(method_name)
 
+def list_instances():
+    """
+    Return a list of all top-level instance names.  This will not include any
+    specific configuration.  For instance, only 'foo' will be included in the
+    list if 'foo', 'foo.bar', 'foo.baz', etc are valid.
+    """
+    return ProviderMetaclass._subclasses.keys()
 
 class ProviderMetaclass(type):
     _subclasses = {}
@@ -137,10 +144,19 @@ class MongoConnectionProvider(SingletonProvider, Provider):
 class MongoProvider(Provider):
     __abstract__ = True
 
+    class DummyDB(object):
+        def __getattr__(self, name):
+            raise NotImplementedError
+
     def __provide__(self, method_name):
         from . import mongodb
         config_method = getattr(self, method_name)
         config = dict(self.__defaults__().items() + config_method().items())
+        if config.get('dummy', False):
+            from warnings import warn
+            warn("Using Dummy Mongodb.  If you don't know what this means, disable the dummy option in your mongo settings.")
+            return self.DummyDB()
+
         return mongodb.MongoHelper(method_name, config)
 
     def __defaults__(self):
