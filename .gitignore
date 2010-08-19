@@ -28,6 +28,7 @@ develop-eggs
 *prof*
 pip-log.txt
 *.pyc
+*.pyo
 
 # test cruft
 *_test

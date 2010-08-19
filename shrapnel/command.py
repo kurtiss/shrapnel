@@ -20,6 +20,7 @@ import shrapnel.classtools
 
 
 class ShrapnelApplication(object):
+    cmd_options = []
     def get_tornado_server(self, application):
         return tornado.httpserver.HTTPServer(application)
         
@@ -67,7 +68,10 @@ class ShrapnelApplication(object):
             help    = "The path to a file which will contain the server's informational log messages."
         )       
 
-        options, args = parser.parse_args()
+        for args, kwargs in self.cmd_options:
+            parser.add_option(*args, **kwargs)
+
+        self.options, args = parser.parse_args()
         os.chdir(self.path)
 
         # tornado.locale.load_translations(
@@ -76,7 +80,7 @@ class ShrapnelApplication(object):
 
         signal.signal(signal.SIGINT, self._do_signal)
         signal.signal(signal.SIGTERM, self._do_signal)
-        self.start(options)
+        self.start(self.options)
 
     def _daemonize(self, options):
         # http://code.activestate.com/recipes/278731/
