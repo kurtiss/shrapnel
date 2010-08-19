@@ -105,7 +105,8 @@ def cached2(key_format, memcached_instance = '__default__'):
     
 
 class CacheKeyGenerator(object):
-    def __init__(self, *key_parts):
+    def __init__(self, *key_parts, **kwargs):
+        self._do_stat = kwargs.pop('do_stat', False)
         self._file_names = []
         self._file_parts = []
         self._key_parts = key_parts
@@ -114,11 +115,16 @@ class CacheKeyGenerator(object):
     def add_files(self, files):
         if files:
             self._key = None
+            
+        mtime = "nostat"
 
         for f in files:
+            if self._do_stat:
+                mtime = os.stat(f).st_mtime
+
             index = bisect.bisect(self._file_names, f)
             self._file_names.insert(index, f)
-            self._file_parts.insert(index + 1, "{0}:{1}".format(f, os.stat(f).st_mtime))
+            self._file_parts.insert(index + 1, "{0}:{1}".format(f, mtime))
 
     @property
     def key(self):
