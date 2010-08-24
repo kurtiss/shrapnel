@@ -17,5 +17,4 @@ class ProfilingThread(threading.Thread):
             event_len = len(self.ioloop._events)
             callback_len = len(self.ioloop._callbacks)
             print >> outfile, ', '.join([str(time.time()), str(handler_len), str(event_len), str(callback_len)])
-            outfile.flush()
             time.sleep(5)
