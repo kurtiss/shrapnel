@@ -9,21 +9,23 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 
 import threading
 
-def instance(name, *args, **kwargs):
+def _split_name(name):
     if '.' not in name:
         name += ".__default__"
+    return name.split('.')
 
-    cls_name, method_name = name.split('.')
+def instance(name, *args, **kwargs):
+    cls_name, method_name = _split_name(name)
+    provider = ProviderMetaclass.find(cls_name)
+    if provider._instance == None:
+        provider._instance = provider()
 
-    try:
-        MyProvider = ProviderMetaclass._subclasses[cls_name]
-    except KeyError:
-        raise LookupError("Couldn't find provider class for {0}, tried {1}{2}ConfigurationProvider.".format(name, cls_name[0].upper(), cls_name[1:].lower()))
+    return provider._instance.__provide__(method_name)
 
-    if MyProvider._instance == None:
-        MyProvider._instance = MyProvider()
-
-    return MyProvider._instance.__provide__(method_name)
+def settings(name):
+    cls_name, method_name = _split_name(name)
+    provider = ProviderMetaclass.find(cls_name)()
+    return provider.get_config(method_name)
 
 def list_instances():
     """
@@ -32,6 +34,8 @@ def list_instances():
     list if 'foo', 'foo.bar', 'foo.baz', etc are valid.
     """
     return ProviderMetaclass._subclasses.keys()
+
+
 
 class ProviderMetaclass(type):
     _subclasses = {}
@@ -55,6 +59,13 @@ class ProviderMetaclass(type):
 
         return new_cls
 
+    @classmethod
+    def find(cls, cls_name):
+        try:
+            return cls._subclasses[cls_name]
+        except KeyError:
+            raise LookupError, "Couldn't find provider class for {0}".format(cls_name)
+
 
 class SingletonProvider(object):
     def __init__(self, *args, **kwargs):
@@ -69,18 +80,14 @@ class SingletonProvider(object):
                 try:
                     result = self._instances[method_name]
                 except KeyError:
-                    config_method = getattr(self, method_name)
-                    config = dict(self.__defaults__().items() + config_method().items())
-                    result = self._instances[method_name] = self.construct(config)
+                    result = self.get_config(method_name)
 
         return result
 
 
 class InstanceProvider(object):
     def __provide__(self, method_name):
-        # pymongo will do the appropriate connection pooling.
-        config_method = getattr(self, method_name)
-        config = dict(self.__defaults__().items() + config_method().items())
+        config = self. get_config(method_name)
         return self.construct(config)
 
 
@@ -94,6 +101,13 @@ class Provider(object):
 
     def construct(self, configuration):
         return configuration
+
+    def get_config(self, method_name):
+        config_method = getattr(self, method_name)
+        config = {}
+        config.update(self.__defaults__())
+        config.update(config_method())
+        return config
 
     def __init__(self):
         self._instances = {}
