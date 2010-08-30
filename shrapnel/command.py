@@ -7,7 +7,7 @@ Created by Kurtiss Hare on 2010-02-10.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
-import config
+from shrapnel import config
 import logging
 import logging.handlers
 import optparse
@@ -16,6 +16,7 @@ import signal
 import sys
 import tornado.httpserver
 import tornado.ioloop
+from tornado.options import options as tornado_options, parse_command_line
 import tornado.web
 import shrapnel.classtools
 
@@ -81,12 +82,13 @@ class ShrapnelApplication(object):
                 help='Turn profiling off',
                 )
 
+        parse_command_line([])
         for args, kwargs in self.cmd_options:
             parser.add_option(*args, **kwargs)
 
         self.options, args = parser.parse_args()
         if self.options.profile is not None:
-            config.instance('app')['profile']=self.options.profile
+            tornado_options.enable_appstats=self.options.profile
         os.chdir(self.path)
 
         # tornado.locale.load_translations(
