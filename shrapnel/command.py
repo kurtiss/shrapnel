@@ -7,6 +7,7 @@ Created by Kurtiss Hare on 2010-02-10.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
+import config
 import logging
 import logging.handlers
 import optparse
@@ -68,10 +69,24 @@ class ShrapnelApplication(object):
             help    = "The path to a file which will contain the server's informational log messages."
         )       
 
+        parser.add_option('--profile',
+                action='store_true',
+                dest='profile',
+                default=None,
+                help='Turn profiling on',
+                )
+        parser.add_option('--no-profile',
+                action='store_false',
+                dest='profile',
+                help='Turn profiling off',
+                )
+
         for args, kwargs in self.cmd_options:
             parser.add_option(*args, **kwargs)
 
         self.options, args = parser.parse_args()
+        if self.options.profile is not None:
+            config.instance('app')['profile']=self.options.profile
         os.chdir(self.path)
 
         # tornado.locale.load_translations(
