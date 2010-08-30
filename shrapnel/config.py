@@ -19,13 +19,14 @@ def instance(name, *args, **kwargs):
     provider = ProviderMetaclass.find(cls_name)
     if provider._instance == None:
         provider._instance = provider()
-
     return provider._instance.__provide__(method_name)
 
 def settings(name):
     cls_name, method_name = _split_name(name)
-    provider = ProviderMetaclass.find(cls_name)()
-    return provider.get_config(method_name)
+    provider = ProviderMetaclass.find(cls_name)
+    if provider._instance == None:
+        provider._instance = provider()
+    return provider._instance.get_config(method_name)
 
 def list_instances():
     """
@@ -80,7 +81,8 @@ class SingletonProvider(object):
                 try:
                     result = self._instances[method_name]
                 except KeyError:
-                    result = self.get_config(method_name)
+                    config = self.get_config(method_name)
+                    result = self._instances[method_name] = self.construct(config)
 
         return result
 
@@ -164,8 +166,7 @@ class MongoProvider(Provider):
 
     def __provide__(self, method_name):
         from . import mongodb
-        config_method = getattr(self, method_name)
-        config = dict(self.__defaults__().items() + config_method().items())
+        config = self.get_config(method_name)
         if config.get('dummy', False):
             from warnings import warn
             warn("Using Dummy Mongodb.  If you don't know what this means, disable the dummy option in your mongo settings.")
