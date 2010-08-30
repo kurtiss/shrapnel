@@ -165,13 +165,16 @@ class MongoProvider(Provider):
             provider = 'no_provider_defined'
         )
 
-
+_client_data = threading.local()
 class MemcacheProvider(InstanceProvider, Provider):
     __abstract__ = True
 
     def construct(self, config):
-        import memcache
-        return memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
+        global _client_data
+        if not hasattr(_client_data, 'conn'):
+            import memcache
+            _client_data.conn = memcache.Client(["%s:%d" % (config['host'], config['port'])], debug=config['debug'])
+        return _client_data.conn
 
     def __defaults__(self):
         return dict(
