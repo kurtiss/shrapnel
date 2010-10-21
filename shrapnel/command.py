@@ -207,7 +207,6 @@ class ShrapnelApplication(object):
             io_loop = self._tornado_server.io_loop
 
             if io_loop.running():
-                print "running"
                 check_graceful_stop = tornado.ioloop.PeriodicCallback(
                     self._poll_graceful_stop, 
                     250, 
