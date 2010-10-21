@@ -17,14 +17,12 @@ import sys
 import time
 import tornado.httpserver
 import tornado.ioloop
-from tornado.options import options as tornado_options, parse_command_line
+from tornado.options import options as tornado_options
 import tornado.web
 import shrapnel.classtools
 
 
 class ShrapnelApplication(object):
-    cmd_options = []
-
     def get_tornado_server(self, application):
         return tornado.httpserver.HTTPServer(application)
         
@@ -87,34 +85,13 @@ class ShrapnelApplication(object):
             help    = "The path to a file which will contain the server's informational log messages."
         )       
 
-        parser.add_option('--profile',
-                action='store_true',
-                dest='profile',
-                default=None,
-                help='Turn profiling on',
-                )
-        parser.add_option('--no-profile',
-                action='store_false',
-                dest='profile',
-                help='Turn profiling off',
-                )
-
-        parse_command_line([])
-        for args, kwargs in self.cmd_options:
-            parser.add_option(*args, **kwargs)
-
-        self.options, args = parser.parse_args()
-        if self.options.profile is not None:
-            tornado_options.enable_appstats=self.options.profile
-        os.chdir(self.path)
+        options, args = parser.parse_args()
 
         # tornado.locale.load_translations(
         #   os.path.join(os.path.dirname(__file__), "translations")
         # )
 
-        signal.signal(signal.SIGINT, self.graceful_stop)
-        signal.signal(signal.SIGTERM, self.graceful_stop)
-        self.start(self.options)
+        self.start(options)
 
     def _daemonize(self, options):
         # http://code.activestate.com/recipes/278731/
@@ -181,22 +158,26 @@ class ShrapnelApplication(object):
             self._daemonize(options)
         elif options.infolog or options.errorlog:
             _setup_logging(options)
-        
+
+        signal.signal(signal.SIGINT, self.graceful_stop)
+        signal.signal(signal.SIGTERM, self.graceful_stop)
+
         # TODO: can't wait to get rid of this
         self._pid = os.getpid()
         shrapnel.classtools.ProcessFunction.procpool
-        
-        self._tornado_server.listen(int(options.port))
 
-        if (self.autoreload):
-            import tornado.autoreload
-            tornado.autoreload.start()
+        if self._pid == os.getpid():
+            self._tornado_server.listen(int(options.port))
 
-        try:
-            self.command()
-            self.graceful_stop()
-        except KeyboardInterrupt, e:
-            self.graceful_stop()
+            if (self.autoreload):
+                import tornado.autoreload
+                tornado.autoreload.start()
+
+            try:
+                self.command()
+                self.graceful_stop()
+            except KeyboardInterrupt, e:
+                self.graceful_stop()
             
     def serve(self):
         self._tornado_server.io_loop.start()
