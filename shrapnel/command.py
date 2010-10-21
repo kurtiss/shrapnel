@@ -14,6 +14,7 @@ import optparse
 import os
 import signal
 import sys
+import time
 import tornado.httpserver
 import tornado.ioloop
 from tornado.options import options as tornado_options, parse_command_line
@@ -23,17 +24,33 @@ import shrapnel.classtools
 
 class ShrapnelApplication(object):
     cmd_options = []
+
     def get_tornado_server(self, application):
         return tornado.httpserver.HTTPServer(application)
         
     def get_tornado_application(self):
         return tornado.web.Application([])
-
+        
     def __init__(self, path, version = '', command = None):
         self.autoreload = False
         self.path = path
         self.version = version
         self.command = command or self.serve
+
+    @property
+    def _tornado_server(self):
+        if not hasattr(self, '_tornado_server_instance'):
+            self._tornado_server_instance = self.get_tornado_server(self._tornado_application)
+        return self._tornado_server_instance
+    
+    @property
+    def _tornado_application(self):
+        if not hasattr(self, '_tornado_application_instance'):
+            self._tornado_application_instance = self.get_tornado_application()
+            settings = self._tornado_application_instance.settings
+            settings['template_path'] = settings.get('template_path', os.path.join(self.path, 'templates'))
+
+        return self._tornado_application_instance
 
     def run(self):
         parser = optparse.OptionParser(
@@ -95,8 +112,8 @@ class ShrapnelApplication(object):
         #   os.path.join(os.path.dirname(__file__), "translations")
         # )
 
-        signal.signal(signal.SIGINT, self._do_signal)
-        signal.signal(signal.SIGTERM, self._do_signal)
+        signal.signal(signal.SIGINT, self.graceful_stop)
+        signal.signal(signal.SIGTERM, self.graceful_stop)
         self.start(self.options)
 
     def _daemonize(self, options):
@@ -164,13 +181,12 @@ class ShrapnelApplication(object):
             self._daemonize(options)
         elif options.infolog or options.errorlog:
             _setup_logging(options)
-            
+        
+        # TODO: can't wait to get rid of this
+        self._pid = os.getpid()
         shrapnel.classtools.ProcessFunction.procpool
         
-        application = self.get_tornado_application()
-        application.settings['template_path'] = application.settings.get('template_path', os.path.join(self.path, 'templates'))     
-        server = self.get_tornado_server(application)
-        server.listen(int(options.port))
+        self._tornado_server.listen(int(options.port))
 
         if (self.autoreload):
             import tornado.autoreload
@@ -178,18 +194,48 @@ class ShrapnelApplication(object):
 
         try:
             self.command()
-            self.stop()
+            self.graceful_stop()
         except KeyboardInterrupt, e:
-            self.stop()
+            self.graceful_stop()
             
     def serve(self):
-        tornado.ioloop.IOLoop.instance().start()
+        self._tornado_server.io_loop.start()
         
-    def stop(self):
-        sys.exit(0) 
-        
-    def _do_signal(self, signal, frame):
+    def graceful_stop(self, *args, **kwargs):
+        if os.getpid() == self._pid:
+            self._tornado_server.stop()
+            io_loop = self._tornado_server.io_loop
+
+            if io_loop.running():
+                print "running"
+                check_graceful_stop = tornado.ioloop.PeriodicCallback(
+                    self._poll_graceful_stop, 
+                    250, 
+                    io_loop = io_loop
+                )
+
+                check_graceful_stop.start()
+
+                io_loop.add_timeout(
+                    time.time() + 10000, 
+                    self._graceful_stop_now
+                )
+            else:
+                self._graceful_stop_now()
+    
+    def _graceful_stop_now(self):
+        self._tornado_server.io_loop.stop()
+        shrapnel.classtools.ProcessFunction.procpool.close()
         self.stop()
+        sys.exit(0)
+
+    def _poll_graceful_stop(self):
+        if len(self._tornado_server.io_loop._handlers) == 1:
+            self._graceful_stop_now()
+    
+    def stop(self):
+        pass
+
 
 def _setup_logging(options):
     class _InfoFilter(logging.Filter):
