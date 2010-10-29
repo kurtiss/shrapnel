@@ -185,6 +185,7 @@ class ShrapnelApplication(object):
     def graceful_stop(self, *args, **kwargs):
         if os.getpid() == self._pid:
             self._tornado_server.stop()
+            shrapnel.classtools.ProcessFunction.procpool.close()
             io_loop = self._tornado_server.io_loop
 
             if io_loop.running():
@@ -205,7 +206,8 @@ class ShrapnelApplication(object):
     
     def _graceful_stop_now(self):
         self._tornado_server.io_loop.stop()
-        shrapnel.classtools.ProcessFunction.procpool.close()
+        shrapnel.classtools.ProcessFunction.procpool.terminate()
+        shrapnel.classtools.ProcessFunction.procpool.join()
         self.stop()
         sys.exit(0)
 
