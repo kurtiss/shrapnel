@@ -8,7 +8,7 @@ Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
 import bisect
-import config
+import confy
 import functools
 import itertools
 import os
@@ -67,7 +67,7 @@ def cached2(key_format, memcached_instance = '__default__'):
             if not type(generator) == types.GeneratorType:
                 raise_error("It must return a generator.")
 
-            mc = config.instance("memcache.{0}".format(memcached_instance))
+            mc = confy.instance("memcache.{0}".format(memcached_instance))
 
             if not callable(getattr(mc, 'get', None)) or not callable(getattr(mc, 'set', None)):
                 raise_error("The <memcached> instance for this function must support the .get(...) and .set(...) methods.")

@@ -7,7 +7,6 @@ Created by Kurtiss Hare on 2010-02-10.
 Copyright (c) 2010 Medium Entertainment, Inc. All rights reserved.
 """
 
-from shrapnel import config
 import logging
 import logging.handlers
 import optparse

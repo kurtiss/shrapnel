@@ -28,6 +28,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
     install_requires = [
+#       'confy',
 #       'tornado',
 #       'pymongo',
 #       'memcache'
