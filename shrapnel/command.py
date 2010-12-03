@@ -46,6 +46,7 @@ class ShrapnelApplication(object):
             self._tornado_application_instance = self.get_tornado_application()
             settings = self._tornado_application_instance.settings
             settings['template_path'] = settings.get('template_path', os.path.join(self.path, 'templates'))
+            settings['debug'] = self.autoreload or settings.get('debug', False)
 
         return self._tornado_application_instance
 
