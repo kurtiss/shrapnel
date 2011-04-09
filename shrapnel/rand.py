@@ -13,7 +13,7 @@ import random
 class Picker(object):
     def __init__(self):
         self.retainer = Retainer(1)
-    
+
     def encounter(self, value):
         self.retainer.encounter(value)
 
@@ -33,23 +33,13 @@ class Retainer(object):
     def encounter(self, item):
         result_len = len(self._result)
 
-        if result_len > 0:
-            if random.random() <= min(result_len, self.size) / float(self.counter):
-                if result_len >= self.size:
-                    replace_index = random.randint(0, result_len - 1)
-                    self._result[replace_index] = item
-                else:
-                    insert_index = random.randint(0, result_len)
-
-                    if insert_index != result_len:
-                        self._result.append(self._result[insert_index])
-                        self._result[insert_index] = item
-                    else:
-                        self._result.append(item)
+        if result_len == self.size:
+            self.counter += 1
+            if random.random() <= float(self.size) / (self.size + self.counter):
+                replace_index = random.randint(0, result_len - 1)
+                self._result[replace_index] = item
         else:
             self._result.append(item)
-
-        self.counter += 1
 
     @property
     def result(self):
